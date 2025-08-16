@@ -1,21 +1,20 @@
 import streamlit as st
-import pickle
 import numpy as np
+from tensorflow.keras.models import load_model
 
-# Load model
-model = pickle.load(open("model.pkl", "rb"))
+# Load your trained model
+model = load_model("model.h5")
 
-st.title("💳 Credit Card Fraud Detection")
+st.title("Deep Learning Model Deployment 🚀")
 
-# Input fields
-feature1 = st.number_input("Feature 1")
-feature2 = st.number_input("Feature 2")
-# add inputs for all required features...
+# Example input fields (adjust according to your model features)
+st.header("Enter Input Features:")
+feature1 = st.number_input("Feature 1", min_value=0.0, max_value=100.0, value=10.0)
+feature2 = st.number_input("Feature 2", min_value=0.0, max_value=100.0, value=20.0)
+
+# Convert inputs to numpy array
+input_data = np.array([[feature1, feature2]])
 
 if st.button("Predict"):
-    features = np.array([[feature1, feature2]])  # add more features
-    prediction = model.predict(features)
-    if prediction[0] == 1:
-        st.error("⚠️ Fraud Detected!")
-    else:
-        st.success("✅ Legitimate Transaction")
+    prediction = model.predict(input_data)
+    st.success(f"Prediction: {prediction}")
