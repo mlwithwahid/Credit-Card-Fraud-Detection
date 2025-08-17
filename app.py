@@ -1,127 +1,106 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
 import os
-import joblib
+import pickle
+import pandas as pd
+import streamlit as st
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 
-# Load model & scaler
-# ---------------- Load or Train Model ----------------
-st.subheader("🤖 Model Status")
+# ---------------------- Streamlit Config ----------------------
+st.set_page_config(page_title="Credit Card Fraud Detection", layout="wide")
 
-import pickle
-from sklearn.ensemble import RandomForestClassifier
+st.title("💳 Credit Card Fraud Detection App")
+st.write("Upload a dataset or use the demo example to explore fraud detection.")
 
 MODEL_PATH = "model.h5"
+SCALER_PATH = "scaler.h5"
 
+# ---------------------- Demo Dataset ----------------------
 def demo_dataset():
     data = {
         "V1": [0.1, -1.2, 1.5, -0.3, 0.7, -2.1],
         "V2": [1.3, -0.4, 0.7, 2.1, -1.5, 0.9],
         "V3": [-0.2, 0.8, -1.5, 0.6, 1.1, -0.7],
         "Amount": [50.0, 200.0, 500.0, 1200.0, 300.0, 750.0],
-        "Class": [0, 0, 1, 1, 0, 1]
+        "Class": [0, 0, 1, 1, 0, 1],
     }
     return pd.DataFrame(data)
 
-if os.path.exists(MODEL_PATH):
-    try:
+# ---------------------- Load or Train Model ----------------------
+model = None
+scaler = None
+
+st.subheader("🤖 Model Status")
+
+try:
+    if os.path.exists(MODEL_PATH) and os.path.exists(SCALER_PATH):
         with open(MODEL_PATH, "rb") as f:
             model = pickle.load(f)
-        st.success("✅ Model loaded successfully.")
-    except:
-        st.error("⚠️ Error loading model. Re-training fallback model...")
+        with open(SCALER_PATH, "rb") as f:
+            scaler = pickle.load(f)
+        st.success("✅ Model and Scaler loaded successfully.")
+    else:
+        st.warning("⚠️ Model not found. Training fallback model on demo dataset...")
         df_demo = demo_dataset()
         X, y = df_demo.drop("Class", axis=1), df_demo["Class"]
-        model = RandomForestClassifier().fit(X, y)
+
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+
+        model = RandomForestClassifier(random_state=42)
+        model.fit(X_scaled, y)
+
         with open(MODEL_PATH, "wb") as f:
             pickle.dump(model, f)
+        with open(SCALER_PATH, "wb") as f:
+            pickle.dump(scaler, f)
+
         st.success("✅ Fallback model trained & saved.")
-else:
-    st.warning("⚠️ Model not found. Training fallback model...")
-    df_demo = demo_dataset()
-    X, y = df_demo.drop("Class", axis=1), df_demo["Class"]
-    model = RandomForestClassifier().fit(X, y)
-    with open(MODEL_PATH, "wb") as f:
-        pickle.dump(model, f)
-    st.success("✅ Fallback model trained & saved.")
+except Exception as e:
+    st.error(f"⚠️ Error while loading/training model: {str(e)}")
+    model = None
+    scaler = None
 
-# ---------------- User Upload ----------------
-uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+# ---------------------- File Upload ----------------------
+st.subheader("📂 Upload Dataset")
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
 
-    if "Class" in df.columns:
-        X = df.drop("Class", axis=1)
-        y = df["Class"]
-    else:
-        X = df
-        y = None
-
-    if scaler:
-        X_scaled = scaler.transform(X)
-        preds = model.predict(X_scaled)
-        df["Prediction"] = preds
-
-        st.subheader("🔎 Predictions")
-        st.dataframe(df.head())
-
-        if y is not None:
-            st.subheader("✅ Accuracy on uploaded file")
-            acc = (preds == y).mean()
-            st.write(f"Accuracy: {acc:.2%}")
-    else:
-        st.error("⚠️ Model not found. Please train the model first.")
-
-# ---------------- Manual Input ----------------
-st.subheader("Or Enter Transaction Details")
-feature_count = 30  # Adjust based on dataset
-inputs = []
-
-for i in range(feature_count):
-    val = st.number_input(f"Feature {i+1}", value=0.0)
-    inputs.append(val)
-
-if st.button("Predict Transaction"):
-    X_manual = np.array(inputs).reshape(1, -1)
-    if scaler and model:
-        X_manual_scaled = scaler.transform(X_manual)
-        pred = model.predict(X_manual_scaled)[0]
-        st.success("⚠️ Fraudulent Transaction!" if pred == 1 else "✅ Legitimate Transaction")
-    else:
-        st.error("⚠️ Model not loaded.")
-
-# ---------------- Example Transactions ----------------
-# ---------------- Example Transactions ----------------
-st.subheader("📊 Example Transactions")
-
-def demo_examples():
-    data = {
-        "V1": [0.1, -1.2, 1.5, -0.3],
-        "V2": [1.3, -0.4, 0.7, 2.1],
-        "V3": [-0.2, 0.8, -1.5, 0.6],
-        "Amount": [50.0, 200.0, 500.0, 1200.0],
-        "Class": [0, 0, 1, 1]  # 0 = Legit, 1 = Fraud
-    }
-    return pd.DataFrame(data)
-
-if os.path.exists("data/creditcard.csv"):
+df = None
+if uploaded_file:
     try:
-        df = pd.read_csv("data/creditcard.csv")
-        legit_samples = df[df["Class"] == 0].sample(n=2, random_state=42)
-        fraud_samples = df[df["Class"] == 1].sample(n=2, random_state=42)
-    except:
-        df = demo_examples()
-        legit_samples = df[df["Class"] == 0]
-        fraud_samples = df[df["Class"] == 1]
+        df = pd.read_csv(uploaded_file)
+        st.success("✅ Dataset uploaded successfully.")
+        st.write(df.head())
+    except Exception as e:
+        st.error(f"⚠️ Error reading CSV file: {str(e)}")
+
 else:
-    df = demo_examples()
-    legit_samples = df[df["Class"] == 0]
-    fraud_samples = df[df["Class"] == 1]
+    st.info("ℹ️ No file uploaded. Using demo dataset.")
+    df = demo_dataset()
+    st.write(df.head())
 
-st.write("✅ Legitimate Transactions")
-st.dataframe(legit_samples)
+# ---------------------- Prediction Section ----------------------
+st.subheader("🔎 Fraud Prediction")
 
-st.write("⚠️ Fraudulent Transactions")
-st.dataframe(fraud_samples)
+if model is not None and scaler is not None and df is not None:
+    try:
+        if "Class" in df.columns:
+            X_new = df.drop("Class", axis=1)
+        else:
+            X_new = df.copy()
+
+        X_scaled = scaler.transform(X_new)
+        predictions = model.predict(X_scaled)
+
+        df_results = df.copy()
+        df_results["Prediction"] = predictions
+
+        st.write("### 📝 Predictions")
+        st.dataframe(df_results.head(10))
+
+        fraud_count = sum(predictions)
+        st.success(f"🚨 Fraudulent Transactions Detected: {fraud_count}")
+    except Exception as e:
+        st.error(f"⚠️ Prediction error: {str(e)}")
+else:
+    st.warning("⚠️ Model/Scaler not available. Please check setup.")
