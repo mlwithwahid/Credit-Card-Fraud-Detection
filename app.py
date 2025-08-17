@@ -5,16 +5,19 @@ from tensorflow.keras.models import load_model
 # Load your trained model
 model = load_model("model.h5")
 
-st.title("Deep Learning Model Deployment 🚀")
+st.title("Credit Card Fraud Detection 🚀")
 
-# Example input fields (adjust according to your model features)
 st.header("Enter Input Features:")
-feature1 = st.number_input("Feature 1", min_value=0.0, max_value=100.0, value=10.0)
-feature2 = st.number_input("Feature 2", min_value=0.0, max_value=100.0, value=20.0)
+
+# Create 30 input fields dynamically
+features = []
+for i in range(30):
+    value = st.number_input(f"Feature {i+1}", value=0.0)
+    features.append(value)
 
 # Convert inputs to numpy array
-input_data = np.array([[feature1, feature2]])
+input_data = np.array([features])  # shape (1,30)
 
 if st.button("Predict"):
     prediction = model.predict(input_data)
-    st.success(f"Prediction: {prediction}")
+    st.success(f"Prediction: {prediction[0][0]}")
