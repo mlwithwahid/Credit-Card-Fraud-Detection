@@ -73,7 +73,7 @@ if st.checkbox("Show sample fraud & non-fraud examples"):
         elif os.path.exists("creditcard.csv"):
         df = pd.read_csv("creditcard.csv")
         else:
-        st.error("Sample dataset not found. Please upload creditcard.csv to root or data/ folder.")
+        st.error("⚠️ Sample dataset not found. Please upload creditcard.csv to root or data/ folder.")
         df = None
         sample_nonfraud = df[df["Class"] == 0].sample(3)
         sample_fraud = df[df["Class"] == 1].sample(3)
