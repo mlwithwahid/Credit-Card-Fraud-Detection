@@ -12,7 +12,7 @@ st.title("💳 Credit Card Fraud Detection App")
 st.write("Upload a dataset or use the demo example to explore fraud detection.")
 
 MODEL_PATH = "model.h5"
-SCALER_PATH = "scaler.h5"
+SCALER_PATH = "scaler.pkl"
 
 # ---------------------- Demo Dataset ----------------------
 def demo_dataset():
