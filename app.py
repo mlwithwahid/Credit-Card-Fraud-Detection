@@ -6,19 +6,45 @@ import joblib
 from sklearn.preprocessing import StandardScaler
 
 # Load model & scaler
-@st.cache_resource
-def load_model():
+# ---------------- Load or Train Model ----------------
+st.subheader("🤖 Model Status")
+
+import pickle
+from sklearn.ensemble import RandomForestClassifier
+
+MODEL_PATH = "model.h5"
+
+def demo_dataset():
+    data = {
+        "V1": [0.1, -1.2, 1.5, -0.3, 0.7, -2.1],
+        "V2": [1.3, -0.4, 0.7, 2.1, -1.5, 0.9],
+        "V3": [-0.2, 0.8, -1.5, 0.6, 1.1, -0.7],
+        "Amount": [50.0, 200.0, 500.0, 1200.0, 300.0, 750.0],
+        "Class": [0, 0, 1, 1, 0, 1]
+    }
+    return pd.DataFrame(data)
+
+if os.path.exists(MODEL_PATH):
     try:
-        model = joblib.load("models/fraud_model.h5")
-        scaler = joblib.load("models/scaler.h5")
-        return model, scaler
+        with open(MODEL_PATH, "rb") as f:
+            model = pickle.load(f)
+        st.success("✅ Model loaded successfully.")
     except:
-        return None, None
-
-model, scaler = load_model()
-
-st.title("💳 Credit Card Fraud Detection")
-st.write("Upload a transaction file (CSV) or enter details manually to check for fraud.")
+        st.error("⚠️ Error loading model. Re-training fallback model...")
+        df_demo = demo_dataset()
+        X, y = df_demo.drop("Class", axis=1), df_demo["Class"]
+        model = RandomForestClassifier().fit(X, y)
+        with open(MODEL_PATH, "wb") as f:
+            pickle.dump(model, f)
+        st.success("✅ Fallback model trained & saved.")
+else:
+    st.warning("⚠️ Model not found. Training fallback model...")
+    df_demo = demo_dataset()
+    X, y = df_demo.drop("Class", axis=1), df_demo["Class"]
+    model = RandomForestClassifier().fit(X, y)
+    with open(MODEL_PATH, "wb") as f:
+        pickle.dump(model, f)
+    st.success("✅ Fallback model trained & saved.")
 
 # ---------------- User Upload ----------------
 uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
