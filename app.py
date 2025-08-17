@@ -65,7 +65,16 @@ st.subheader("📊 Example Transactions")
 
 if st.checkbox("Show sample fraud & non-fraud examples"):
     try:
+        import os
+        import pandas as pd
+        # Try both paths automatically
+        if os.path.exists("data/creditcard.csv"):
         df = pd.read_csv("data/creditcard.csv")
+        elif os.path.exists("creditcard.csv"):
+        df = pd.read_csv("creditcard.csv")
+        else:
+        st.error("Sample dataset not found. Please upload creditcard.csv to root or data/ folder.")
+        df = None
         sample_nonfraud = df[df["Class"] == 0].sample(3)
         sample_fraud = df[df["Class"] == 1].sample(3)
         
