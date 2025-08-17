@@ -1,86 +1,89 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
 import os
-import joblib
-from sklearn.preprocessing import StandardScaler
 
-# Load model & scaler
+# Load trained model
 @st.cache_resource
 def load_model():
+    return tf.keras.models.load_model("model.h5")
+
+model = load_model()
+
+# Feature names
+FEATURES = [
+    "Time","V1","V2","V3","V4","V5","V6","V7","V8","V9",
+    "V10","V11","V12","V13","V14","V15","V16","V17","V18","V19",
+    "V20","V21","V22","V23","V24","V25","V26","V27","V28","Amount"
+]
+
+# Title
+st.title("💳 Credit Card Fraud Detection App")
+st.write("Upload transaction data or try sample transactions below.")
+
+# Tabs for navigation
+tab1, tab2 = st.tabs(["🔼 Upload Transaction", "📊 Example Transactions"])
+
+with tab1:
+    st.subheader("Upload Your Transaction File (CSV)")
+    uploaded_file = st.file_uploader("Upload a CSV with same 30 features", type=["csv"])
+
+    if uploaded_file:
+        try:
+            df = pd.read_csv(uploaded_file)
+
+            # Check feature columns
+            missing_cols = [col for col in FEATURES if col not in df.columns]
+            if missing_cols:
+                st.error(f"Missing required columns: {missing_cols}")
+            else:
+                st.success("✅ File looks good!")
+
+                for idx, row in df.iterrows():
+                    input_array = np.array(row[FEATURES]).reshape(1, -1)
+                    prediction = model.predict(input_array, verbose=0)[0][0]
+
+                    # Show probability bar
+                    st.write(f"### Transaction {idx+1}")
+                    fig, ax = plt.subplots()
+                    ax.bar(["Legit", "Fraud"], [1-prediction, prediction], color=["green","red"])
+                    ax.set_ylim([0,1])
+                    ax.set_ylabel("Probability")
+                    st.pyplot(fig)
+
+        except Exception as e:
+            st.error(f"⚠️ Error processing file: {e}")
+
+with tab2:
+    st.subheader("Try Example Transactions")
+
     try:
-        model = joblib.load("models/fraud_model.pkl")
-        scaler = joblib.load("models/scaler.pkl")
-        return model, scaler
-    except:
-        return None, None
+        if os.path.exists("data/creditcard.csv"):
+            df = pd.read_csv("data/creditcard.csv")
 
-model, scaler = load_model()
+            # Safely sample (min of available vs requested)
+            legit_samples = df[df["Class"] == 0].sample(
+                n=min(2, len(df[df["Class"] == 0])), random_state=42
+            )
+            fraud_samples = df[df["Class"] == 1].sample(
+                n=min(2, len(df[df["Class"] == 1])), random_state=42
+            )
 
-st.title("💳 Credit Card Fraud Detection")
-st.write("Upload a transaction file (CSV) or enter details manually to check for fraud.")
+            samples = pd.concat([legit_samples, fraud_samples])
 
-# ---------------- User Upload ----------------
-uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+            for idx, row in samples.iterrows():
+                input_array = np.array(row[FEATURES]).reshape(1, -1)
+                prediction = model.predict(input_array, verbose=0)[0][0]
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-
-    if "Class" in df.columns:
-        X = df.drop("Class", axis=1)
-        y = df["Class"]
-    else:
-        X = df
-        y = None
-
-    if scaler:
-        X_scaled = scaler.transform(X)
-        preds = model.predict(X_scaled)
-        df["Prediction"] = preds
-
-        st.subheader("🔎 Predictions")
-        st.dataframe(df.head())
-
-        if y is not None:
-            st.subheader("✅ Accuracy on uploaded file")
-            acc = (preds == y).mean()
-            st.write(f"Accuracy: {acc:.2%}")
-    else:
-        st.error("⚠️ Model not found. Please train the model first.")
-
-# ---------------- Manual Input ----------------
-st.subheader("Or Enter Transaction Details")
-feature_count = 30  # Adjust based on dataset
-inputs = []
-
-for i in range(feature_count):
-    val = st.number_input(f"Feature {i+1}", value=0.0)
-    inputs.append(val)
-
-if st.button("Predict Transaction"):
-    X_manual = np.array(inputs).reshape(1, -1)
-    if scaler and model:
-        X_manual_scaled = scaler.transform(X_manual)
-        pred = model.predict(X_manual_scaled)[0]
-        st.success("⚠️ Fraudulent Transaction!" if pred == 1 else "✅ Legitimate Transaction")
-    else:
-        st.error("⚠️ Model not loaded.")
-
-# ---------------- Example Transactions ----------------
-st.subheader("📊 Example Transactions")
-
-if os.path.exists("data/creditcard.csv"):
-    try:
-        df = pd.read_csv("data/creditcard.csv")
-        legit_samples = df[df["Class"] == 0].sample(n=2, random_state=42)
-        fraud_samples = df[df["Class"] == 1].sample(n=2, random_state=42)
-
-        st.write("✅ Legitimate Transactions")
-        st.dataframe(legit_samples)
-
-        st.write("⚠️ Fraudulent Transactions")
-        st.dataframe(fraud_samples)
+                st.write(f"### Example Transaction (Class: {row['Class']})")
+                fig, ax = plt.subplots()
+                ax.bar(["Legit", "Fraud"], [1-prediction, prediction], color=["green","red"])
+                ax.set_ylim([0,1])
+                ax.set_ylabel("Probability")
+                st.pyplot(fig)
+        else:
+            st.warning("⚠️ Example dataset not found. Upload data/creditcard.csv to use this section.")
     except Exception as e:
-        st.warning("⚠️ Could not load example dataset. Please check the file.")
-else:
-    st.info("ℹ️ Example dataset not found. Please upload `data/creditcard.csv` in GitHub if you want to display examples.")
+        st.error(f"⚠️ Error loading examples: {e}")
