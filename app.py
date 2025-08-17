@@ -9,8 +9,8 @@ from sklearn.preprocessing import StandardScaler
 @st.cache_resource
 def load_model():
     try:
-        model = joblib.load("models/fraud_model.pkl")
-        scaler = joblib.load("models/scaler.pkl")
+        model = joblib.load("models/fraud_model.h5")
+        scaler = joblib.load("models/scaler.h5")
         return model, scaler
     except:
         return None, None
