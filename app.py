@@ -11,7 +11,7 @@ st.set_page_config(page_title="Credit Card Fraud Detection (TF)", layout="wide")
 st.title("💳 Credit Card Fraud Detection App (TensorFlow)")
 st.write("Upload a dataset or use the demo example to explore fraud detection.")
 
-MODEL_PATH = "tf_model"
+MODEL_PATH = "tf_model.keras"   # ✅ use .keras extension
 SCALER_PATH = "scaler.pkl"
 
 # ---------------------- Demo Dataset ----------------------
@@ -53,7 +53,7 @@ try:
         model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
         model.fit(X_scaled, y, epochs=10, verbose=0)
 
-        model.save(MODEL_PATH)
+        model.save(MODEL_PATH)  # ✅ correctly saves with .keras
         joblib.dump(scaler, SCALER_PATH)
 
         st.success("✅ Fallback TensorFlow model trained & saved.")
@@ -89,6 +89,9 @@ if model is not None and scaler is not None and df is not None:
             X_new = df.drop("Class", axis=1)
         else:
             X_new = df.copy()
+
+        # ✅ ensure same columns used during training
+        X_new = X_new.reindex(columns=[col for col in demo_dataset().drop("Class", axis=1).columns], fill_value=0)
 
         X_scaled = scaler.transform(X_new)
         predictions = model.predict(X_scaled)
