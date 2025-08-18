@@ -153,4 +153,4 @@ if model is not None and scaler is not None and df is not None:
         st.error(f"⚠️ Prediction error: {str(e)}")
 else:
     st.warning("⚠️ Model/Scaler not available. Please check setup.")
-se check that both files exist and are readable.")
+
