@@ -4,6 +4,7 @@ import streamlit as st
 import tensorflow as tf
 from sklearn.preprocessing import StandardScaler
 import joblib
+import numpy as np
 
 # ---------------------- Streamlit Config ----------------------
 st.set_page_config(page_title="Credit Card Fraud Detection (TF)", layout="wide")
@@ -16,18 +17,26 @@ SCALER_PATH = "scaler.pkl"
 
 # ---------------------- Demo Dataset ----------------------
 def demo_dataset():
+    """Synthetic demo dataset with same schema as Kaggle creditcard.csv"""
+    cols = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount", "Class"]
+
     data = {
-        "V1": [0.1, -1.2, 1.5, -0.3, 0.7, -2.1],
-        "V2": [1.3, -0.4, 0.7, 2.1, -1.5, 0.9],
-        "V3": [-0.2, 0.8, -1.5, 0.6, 1.1, -0.7],
+        "Time": [0, 10, 20, 30, 40, 50],
         "Amount": [50.0, 200.0, 500.0, 1200.0, 300.0, 750.0],
         "Class": [0, 0, 1, 1, 0, 1],
     }
-    return pd.DataFrame(data)
+
+    # Fill V1–V28 with some toy values
+    for i in range(1, 29):
+        data[f"V{i}"] = np.random.randn(6)
+
+    df = pd.DataFrame(data, columns=cols)
+    return df
 
 # ---------------------- Load or Train Model ----------------------
 model = None
 scaler = None
+feature_cols = [c for c in demo_dataset().columns if c != "Class"]
 
 st.subheader("🤖 Model Status")
 
@@ -46,12 +55,12 @@ try:
         X_scaled = scaler.fit_transform(X)
 
         model = tf.keras.Sequential([
-            tf.keras.layers.Dense(16, activation="relu", input_shape=(X_scaled.shape[1],)),
-            tf.keras.layers.Dense(8, activation="relu"),
+            tf.keras.layers.Dense(32, activation="relu", input_shape=(X_scaled.shape[1],)),
+            tf.keras.layers.Dense(16, activation="relu"),
             tf.keras.layers.Dense(1, activation="sigmoid")
         ])
         model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
-        model.fit(X_scaled, y, epochs=10, verbose=0)
+        model.fit(X_scaled, y, epochs=20, verbose=0)
 
         model.save(MODEL_PATH)  # ✅ correctly saves with .keras
         joblib.dump(scaler, SCALER_PATH)
@@ -71,7 +80,7 @@ df = None
 if uploaded_file:
     try:
         df = pd.read_csv(uploaded_file)
-        st.success("✅ Dataset uploaded successfully.")
+        st.success(f"✅ Dataset uploaded successfully. Shape: {df.shape}")
         st.write(df.head())
     except Exception as e:
         st.error(f"⚠️ Error reading CSV file: {str(e)}")
@@ -90,8 +99,8 @@ if model is not None and scaler is not None and df is not None:
         else:
             X_new = df.copy()
 
-        # ✅ ensure same columns used during training
-        X_new = X_new.reindex(columns=[col for col in demo_dataset().drop("Class", axis=1).columns], fill_value=0)
+        # ✅ ensure all required columns are present (align to training schema)
+        X_new = X_new.reindex(columns=feature_cols, fill_value=0)
 
         X_scaled = scaler.transform(X_new)
         predictions = model.predict(X_scaled)
@@ -105,10 +114,8 @@ if model is not None and scaler is not None and df is not None:
 
         fraud_count = int(sum(predictions))
         st.success(f"🚨 Fraudulent Transactions Detected: {fraud_count}")
+
     except Exception as e:
         st.error(f"⚠️ Prediction error: {str(e)}")
 else:
     st.warning("⚠️ Model/Scaler not available. Please check setup.")
-# After prediction is made:
-if prediction is not None:
-    st.write(f"Raw model output: {prediction}")
