@@ -120,64 +120,37 @@ else:
     st.dataframe(df.head())
 
 # ---------------------- Prediction Section ----------------------
-st.write(f"📊 Uploaded dataset shape: {df.shape}")
-st.write(f"📊 Features used for prediction: {X_new.shape}")
-st.write(f"📊 Predictions shape: {predictions.shape}")
-
 st.subheader("🔎 Fraud Prediction")
+
 if model is not None and scaler is not None and df is not None:
     try:
-        # Split off features/labels (keep Class if present for preview/metrics)
         if "Class" in df.columns:
             X_new = df.drop("Class", axis=1)
         else:
             X_new = df.copy()
 
-        # Get the exact trained feature list from the scaler
-        trained_cols = get_trained_feature_names(
-            scaler, demo_dataset().drop("Class", axis=1).columns
-        )
+        # ✅ ensure same columns used during training
+        X_new = X_new.reindex(columns=[col for col in demo_dataset().drop("Class", axis=1).columns], fill_value=0)
 
-        # Validate scaler vs model input size
-        in_dim = model_input_dim(model)
-        if in_dim is not None and len(trained_cols) != in_dim:
-            st.error(
-                f"❌ Artifacts mismatch: scaler has {len(trained_cols)} features "
-                f"but model expects {in_dim}. Replace 'tf_model.keras' and 'scaler.pkl' "
-                "so they are from the SAME training run (same columns & order)."
-            )
-        else:
-            # Align uploaded data to the EXACT training columns
-            X_aligned = align_to_features(X_new, trained_cols)
+        X_scaled = scaler.transform(X_new)
+        predictions = model.predict(X_scaled)
+        predictions = (predictions > 0.5).astype(int).flatten()
 
-            # Transform & predict
-            X_scaled = scaler.transform(X_aligned)
-            probs = model.predict(X_scaled, verbose=0).reshape(-1)
-            preds = (probs > 0.5).astype(int)
+        # --- Debug info (placed inside try so X_new & predictions exist) ---
+        st.write(f"📊 Uploaded dataset shape: {df.shape}")
+        st.write(f"📊 Features used for prediction: {X_new.shape}")
+        st.write(f"📊 Predictions shape: {predictions.shape}")
 
-            # Show results
-            out = df.copy()
-            out["prob_fraud"] = np.round(probs, 6)
-            out["Prediction"] = preds
+        df_results = df.copy()
+        df_results["Prediction"] = predictions
 
-            st.write("### 📝 Predictions")
-            st.dataframe(out.head(20))
+        st.write("### 📝 Predictions")
+        st.dataframe(df_results.head(10))
 
-            fraud_count = int(preds.sum())
-            st.success(f"🚨 Fraudulent Transactions Detected: {fraud_count}")
-
-            st.download_button(
-                "📥 Download predictions CSV",
-                out.to_csv(index=False).encode("utf-8"),
-                "predictions.csv",
-                "text/csv",
-            )
-
-            # Helpful warning if everything is one class
-            if len(np.unique(preds)) == 1:
-                st.warning("⚠️ All predictions are the same. Consider lowering the threshold or retraining with class weights.")
-
+        fraud_count = int(sum(predictions))
+        st.success(f"🚨 Fraudulent Transactions Detected: {fraud_count}")
     except Exception as e:
-        st.error(f"⚠️ Prediction error: {e}")
+        st.error(f"⚠️ Prediction error: {str(e)}")
 else:
-    st.warning("⚠️ Model/Scaler not available. Please check that both files exist and are readable.")
+    st.warning("⚠️ Model/Scaler not available. Please check setup.")
+se check that both files exist and are readable.")
