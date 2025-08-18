@@ -16,19 +16,37 @@ MODEL_PATH = "tf_model.keras"   # uses Keras native format
 SCALER_PATH = "scaler.pkl"
 
 # ---------------------- Demo Dataset (30 features like Kaggle) ----------------------
-def demo_dataset():
+import numpy as np
+import pandas as pd
+
+def demo_dataset(n: int = 12, fraud_ratio: float = 0.25):
+    """
+    Generate a synthetic demo dataset with Kaggle-like schema:
+    Time, V1...V28, Amount, Class
+    
+    Parameters:
+    - n: number of rows
+    - fraud_ratio: fraction of fraud transactions (0–1)
+    """
     cols = ["Time"] + [f"V{i}" for i in range(1, 29)] + ["Amount", "Class"]
-    n = 12
-    rng = np.random.RandomState(42)
+    rng = np.random.RandomState(42)  # reproducible randomness
+
+    # Generate columns
     data = {
         "Time": np.arange(n) * 10,
         "Amount": rng.lognormal(mean=4.5, sigma=1.0, size=n).round(2),
-        "Class": np.r_[np.zeros(n-3, dtype=int), np.ones(3, dtype=int)],  # a few frauds
     }
     for i in range(1, 29):
         data[f"V{i}"] = rng.normal(0, 1, size=n)
-    df = pd.DataFrame(data, columns=cols)
-    return df
+
+    # Fraud labels: set last few rows as fraud
+    n_fraud = max(1, int(n * fraud_ratio))
+    labels = np.r_[np.zeros(n - n_fraud, dtype=int), np.ones(n_fraud, dtype=int)]
+    rng.shuffle(labels)
+    data["Class"] = labels
+
+    return pd.DataFrame(data, columns=cols)
+
 
 # ---------------------- Helpers ----------------------
 def get_trained_feature_names(scaler, fallback_cols):
