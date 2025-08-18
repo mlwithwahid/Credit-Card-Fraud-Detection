@@ -120,6 +120,10 @@ else:
     st.dataframe(df.head())
 
 # ---------------------- Prediction Section ----------------------
+st.write(f"📊 Uploaded dataset shape: {df.shape}")
+st.write(f"📊 Features used for prediction: {X_new.shape}")
+st.write(f"📊 Predictions shape: {predictions.shape}")
+
 st.subheader("🔎 Fraud Prediction")
 if model is not None and scaler is not None and df is not None:
     try:
